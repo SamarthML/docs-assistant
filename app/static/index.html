@@ -109,6 +109,7 @@
     gap: 12px;
     padding: 4px;
   }
+  .chat-empty { margin: auto; max-width: 380px; text-align: center; color: #7c8295; }
   .bubble { max-width: 88%; padding: 10px 14px; border-radius: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
   .bubble.user { align-self: flex-end; background: var(--accent); color: #fff; }
   .bubble.assistant { align-self: flex-start; background: #f1f2f7; }
@@ -230,7 +231,9 @@
 
   <section class="card">
     <h2>Ask</h2>
-    <div id="messages" class="messages"></div>
+    <div id="messages" class="messages">
+      <p id="chat-empty" class="chat-empty">Ask anything about the uploaded documents. Answers include the source file and page, and I'll tell you if the answer isn't in the documents.</p>
+    </div>
     <form id="ask-form" class="ask-form">
       <input id="question-input" type="text" placeholder="Ask a question about the documents..." autocomplete="off">
       <button id="send-button" type="submit">Send</button>
@@ -386,6 +389,7 @@
   }
 
   function addMessage(className, text) {
+    document.getElementById("chat-empty")?.remove();
     const bubble = el("div", `bubble ${className}`, text);
     document.getElementById("messages").append(bubble);
     scrollChatToBottom();
