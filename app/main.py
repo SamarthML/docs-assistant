@@ -5,7 +5,7 @@ from fastapi import FastAPI
 
 from app import models  # noqa: F401  (registers the tables on Base)
 from app.db import Base, enable_pgvector, engine
-from app.routers import documents
+from app.routers import ask, documents
 
 
 @asynccontextmanager
@@ -17,6 +17,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(title="docs-assistant", lifespan=lifespan)
 app.include_router(documents.router)
+app.include_router(ask.router)
 
 
 @app.get("/health")
