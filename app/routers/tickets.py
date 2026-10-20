@@ -17,6 +17,7 @@ class TicketOut(BaseModel):
     id: int
     ticket_id: str
     title: str
+    description: str | None
     priority: str
     status: str
     source: str

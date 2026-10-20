@@ -19,6 +19,8 @@ COPY pytest.ini .
 COPY app ./app
 COPY tests ./tests
 COPY sample_docs ./sample_docs
+COPY scripts ./scripts
+COPY eval ./eval
 
 EXPOSE 8000
 

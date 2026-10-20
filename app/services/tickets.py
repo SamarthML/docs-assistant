@@ -31,6 +31,7 @@ def create_agent_ticket(db: Session, raw_arguments: str) -> Ticket:
     ticket = Ticket(
         ticket_id="T-" + secrets.token_hex(3).upper(),
         title=arguments.title,
+        description=arguments.description,
         priority=arguments.priority,
         status="open",
         source="agent",

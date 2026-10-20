@@ -71,6 +71,7 @@ class Ticket(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     ticket_id: Mapped[str] = mapped_column(String(50), unique=True)
     title: Mapped[str] = mapped_column(String(255))
+    description: Mapped[str | None] = mapped_column(Text)
     priority: Mapped[str] = mapped_column(String(20))
     status: Mapped[str] = mapped_column(String(20), default="open")
     # One of: "webhook", "agent"
