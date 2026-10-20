@@ -15,7 +15,7 @@ from app.services.tickets import create_agent_ticket
 
 NOT_FOUND_ANSWER = "I couldn't find the answer in the uploaded documents."
 
-router = APIRouter()
+router = APIRouter(tags=["ask"])
 
 
 class AskRequest(BaseModel):

@@ -12,7 +12,7 @@ from app.models import Chunk, Document
 
 MAX_FILE_SIZE = 10 * 1024 * 1024
 
-router = APIRouter()
+router = APIRouter(tags=["documents"])
 
 
 @router.post("/documents")

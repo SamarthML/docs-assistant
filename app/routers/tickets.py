@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.models import Ticket
 
-router = APIRouter()
+router = APIRouter(tags=["tickets"])
 
 
 class TicketOut(BaseModel):

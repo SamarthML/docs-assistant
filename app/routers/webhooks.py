@@ -12,7 +12,7 @@ from app.db import get_db
 from app.models import WebhookEvent
 from app.services.tickets import process_event
 
-router = APIRouter()
+router = APIRouter(tags=["webhooks"])
 
 
 class TicketData(BaseModel):

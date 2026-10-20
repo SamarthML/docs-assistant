@@ -18,13 +18,17 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     yield
 
 
-app = FastAPI(title="docs-assistant", lifespan=lifespan)
+app = FastAPI(
+    title="AI Docs Assistant",
+    description="Answers questions from uploaded documents with citations, and manages support tickets.",
+    lifespan=lifespan,
+)
 app.include_router(documents.router)
 app.include_router(ask.router)
 app.include_router(webhooks.router)
 app.include_router(tickets.router)
 
 
-@app.get("/health")
+@app.get("/health", tags=["health"])
 def health() -> dict[str, str]:
     return {"status": "ok"}
