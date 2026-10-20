@@ -112,12 +112,24 @@ docker compose exec api python -m scripts.evaluate
 
 This uploads the sample documents if they are missing, then runs the questions in `eval/questions.json` through the search step only (no LLM call).
 
+## Demo UI
+
+With the stack running, open http://localhost:8000/. It is a single static page (`app/static/index.html`, plain HTML, CSS and JavaScript, no build step) with three columns:
+
+- **Documents**: drag and drop or choose a file to upload, and see the indexed documents with their chunk counts.
+- **Ask**: a chat with example questions, source chips for each answer, a "Not found in documents" badge when there is no answer, and a ticket card when the assistant raises a ticket.
+- **Tickets**: a table that refreshes every 3 seconds and briefly highlights new tickets.
+
+To show webhooks during a demo, run `scripts/send_webhook.py` in a terminal and watch the ticket appear in the table. The webhook is signed by the script, so the secret never goes to the browser.
+
 ## API summary
 
 | Method | Path | Purpose | Main status codes |
 |---|---|---|---|
 | GET | `/health` | Liveness check | 200 |
+| GET | `/` | Demo UI | 200 |
 | POST | `/documents` | Upload a .pdf, .txt or .md file, chunk and embed it | 200, 400 (wrong type, empty, no text), 413 (over 10 MB) |
+| GET | `/documents` | List documents with their chunk counts, newest first | 200 |
 | POST | `/ask` | Answer a question from the documents, or raise a ticket | 200, 422 (invalid question), 502 (Groq failed) |
 | POST | `/webhooks/tickets` | Receive a signed ticket event | 202 (accepted), 200 (duplicate), 401 (bad signature), 422 (invalid body) |
 | GET | `/tickets` | List tickets, newest first | 200, 422 (invalid query parameters) |
@@ -145,11 +157,12 @@ The threshold alone is not enough. "What is the maternity leave policy?" scored 
 
 ## Testing and evaluation
 
-The 10 tests cover:
+The 12 tests cover:
 
 - Webhooks: invalid signature (401, nothing saved), missing signature (401), a valid event creating a ticket, and a duplicate event being processed only once.
 - Ask: a question with no matching content returns `found=false` without calling the LLM, and an answerable question returns the answer with the correct file and page as a source.
-- Uploads: an unsupported file type is rejected with 400.
+- Documents: an unsupported file type is rejected with 400, and `GET /documents` lists an uploaded file with its chunk count.
+- UI: `GET /` returns the HTML page.
 - Chunking: `chunk_text` respects the size limit and overlap.
 - Agent: a valid `create_ticket` call saves a ticket with source `agent`, and invalid tool input (priority `super-high`) saves nothing.
 

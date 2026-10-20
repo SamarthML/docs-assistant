@@ -1,0 +1,493 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Docs Assistant</title>
+<style>
+  :root {
+    --bg: #f4f5f9;
+    --card: #ffffff;
+    --text: #1f2333;
+    --muted: #5d6478;
+    --border: #e2e5ee;
+    --accent: #4f46e5;
+    --accent-soft: #eef0ff;
+    --green: #16a34a;
+    --red: #dc2626;
+    --amber-bg: #fef3c7;
+    --amber-text: #92400e;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 24px;
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 { margin: 0; font-size: 20px; }
+  header a { margin-left: auto; color: var(--accent); font-weight: 600; text-decoration: none; }
+  header a:hover { text-decoration: underline; }
+
+  .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #9ca3af; }
+  .status-dot.ok { background: var(--green); }
+  .status-dot.down { background: var(--red); }
+
+  main {
+    display: grid;
+    grid-template-columns: 1fr 1.6fr 1.5fr;
+    gap: 20px;
+    padding: 20px 24px;
+    align-items: start;
+  }
+  @media (max-width: 1100px) {
+    main { grid-template-columns: 1fr; }
+  }
+
+  .card {
+    background: var(--card);
+    border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(16, 24, 40, 0.08), 0 1px 2px rgba(16, 24, 40, 0.04);
+    padding: 18px;
+    min-width: 0;
+  }
+  .card h2 { margin: 0 0 14px; font-size: 18px; }
+
+  /* Documents */
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: 10px;
+    padding: 24px 12px;
+    text-align: center;
+    color: var(--muted);
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .drop-zone:hover, .drop-zone.dragging { border-color: var(--accent); background: var(--accent-soft); }
+  .upload-status { min-height: 24px; margin: 10px 0; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+  .upload-status.error { color: var(--red); }
+  .upload-status.success { color: var(--green); }
+
+  .doc-list { list-style: none; margin: 0; padding: 0; }
+  .doc-list li {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 0;
+    border-top: 1px solid var(--border);
+    font-size: 15px;
+  }
+  .doc-list .name { overflow-wrap: anywhere; }
+  .doc-list .count { color: var(--muted); white-space: nowrap; }
+
+  /* Ask */
+  .messages {
+    height: 52vh;
+    min-height: 300px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 4px;
+  }
+  .bubble { max-width: 88%; padding: 10px 14px; border-radius: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+  .bubble.user { align-self: flex-end; background: var(--accent); color: #fff; }
+  .bubble.assistant { align-self: flex-start; background: #f1f2f7; }
+  .bubble.error { align-self: flex-start; background: #fee2e2; color: #991b1b; }
+  .bubble.thinking { align-self: flex-start; color: var(--muted); font-style: italic; background: none; }
+
+  .badge-not-found {
+    display: inline-block;
+    margin-bottom: 6px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--amber-bg);
+    color: var(--amber-text);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .sources { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+  .source-chip {
+    padding: 2px 10px;
+    border-radius: 999px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    font-size: 13px;
+    cursor: default;
+  }
+  .ticket-card {
+    margin-top: 8px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    white-space: normal;
+  }
+  .ticket-card .ticket-id { font-weight: 700; }
+
+  .ask-form { display: flex; gap: 8px; margin-top: 12px; }
+  .ask-form input {
+    flex: 1;
+    min-width: 0;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font: inherit;
+  }
+  .ask-form input:focus { outline: 2px solid var(--accent); border-color: transparent; }
+  button {
+    font: inherit;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 18px;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button:disabled { opacity: 0.6; cursor: default; }
+
+  .examples { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .example-chip {
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  /* Tickets */
+  .table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  th { text-align: left; color: var(--muted); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  td.time { color: var(--muted); white-space: nowrap; }
+  .empty { color: var(--muted); font-size: 15px; }
+
+  tr.new-row { animation: highlight 2.5s ease-out; }
+  @keyframes highlight { from { background: #c7d2fe; } to { background: transparent; } }
+
+  .priority { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 13px; font-weight: 600; color: #fff; }
+  .priority.low { background: #6b7280; }
+  .priority.medium { background: #2563eb; }
+  .priority.high { background: #ea580c; }
+  .priority.urgent { background: #dc2626; }
+
+  .spinner {
+    width: 16px;
+    height: 16px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<header>
+  <h1>AI Docs Assistant</h1>
+  <span id="status-dot" class="status-dot" title="Checking API..."></span>
+  <a href="/docs" target="_blank">API docs</a>
+</header>
+
+<main>
+  <section class="card">
+    <h2>Documents</h2>
+    <div id="drop-zone" class="drop-zone">
+      Drop a .pdf, .txt or .md file here<br>or click to choose one
+    </div>
+    <input id="file-input" type="file" accept=".pdf,.txt,.md" hidden>
+    <div id="upload-status" class="upload-status"></div>
+    <ul id="doc-list" class="doc-list"></ul>
+  </section>
+
+  <section class="card">
+    <h2>Ask</h2>
+    <div id="messages" class="messages"></div>
+    <form id="ask-form" class="ask-form">
+      <input id="question-input" type="text" placeholder="Ask a question about the documents..." autocomplete="off">
+      <button id="send-button" type="submit">Send</button>
+    </form>
+    <div id="examples" class="examples"></div>
+  </section>
+
+  <section class="card">
+    <h2>Tickets</h2>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Ticket</th><th>Title</th><th>Priority</th><th>Source</th><th>Created</th></tr>
+        </thead>
+        <tbody id="ticket-rows"></tbody>
+      </table>
+    </div>
+    <p id="tickets-empty" class="empty">No tickets yet.</p>
+  </section>
+</main>
+
+<script>
+  const EXAMPLE_QUESTIONS = [
+    "How many days of annual leave do employees get?",
+    "How quickly must a lost laptop be reported?",
+    "What is the maternity leave policy?",
+    "Raise a ticket: printer on floor 3 is broken, high priority",
+  ];
+  const TICKET_POLL_MS = 3000;
+  const HEALTH_POLL_MS = 10000;
+
+  let knownTicketIds = null;
+
+  // Helpers
+
+  function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  function errorMessage(body, status) {
+    if (body && typeof body.detail === "string") return body.detail;
+    if (body && Array.isArray(body.detail)) return body.detail.map((d) => d.msg).join("; ");
+    return `Request failed (HTTP ${status})`;
+  }
+
+  async function apiFetch(url, options) {
+    const response = await fetch(url, options);
+    let body = null;
+    try {
+      body = await response.json();
+    } catch {
+      // Not JSON; the status code is enough for the error message.
+    }
+    if (!response.ok) throw new Error(errorMessage(body, response.status));
+    return body;
+  }
+
+  function priorityBadge(priority) {
+    return el("span", `priority ${priority}`, priority);
+  }
+
+  // Health
+
+  async function checkHealth() {
+    const dot = document.getElementById("status-dot");
+    try {
+      await apiFetch("/health");
+      dot.className = "status-dot ok";
+      dot.title = "API is up";
+    } catch {
+      dot.className = "status-dot down";
+      dot.title = "API is not responding";
+    }
+  }
+
+  // Documents
+
+  function setUploadStatus(text, kind) {
+    const status = document.getElementById("upload-status");
+    status.replaceChildren();
+    status.className = `upload-status ${kind || ""}`;
+    if (kind === "loading") status.append(el("span", "spinner"));
+    status.append(el("span", "", text));
+  }
+
+  async function uploadFile(file) {
+    setUploadStatus(`Uploading ${file.name}...`, "loading");
+    const form = new FormData();
+    form.append("file", file);
+    try {
+      const result = await apiFetch("/documents", { method: "POST", body: form });
+      setUploadStatus(`Indexed ${result.pages} pages, ${result.chunks} chunks`, "success");
+      loadDocuments();
+    } catch (error) {
+      setUploadStatus(error.message, "error");
+    }
+  }
+
+  async function loadDocuments() {
+    const list = document.getElementById("doc-list");
+    try {
+      const documents = await apiFetch("/documents");
+      list.replaceChildren(...documents.map(documentItem));
+    } catch (error) {
+      list.replaceChildren(el("li", "", `Could not load documents: ${error.message}`));
+    }
+  }
+
+  function documentItem(doc) {
+    const item = el("li");
+    item.append(el("span", "name", doc.file_name), el("span", "count", `${doc.chunks} chunks`));
+    return item;
+  }
+
+  function setupDropZone() {
+    const zone = document.getElementById("drop-zone");
+    const input = document.getElementById("file-input");
+
+    zone.addEventListener("click", () => input.click());
+    input.addEventListener("change", () => {
+      if (input.files.length) uploadFile(input.files[0]);
+      input.value = "";
+    });
+
+    zone.addEventListener("dragover", (event) => {
+      event.preventDefault();
+      zone.classList.add("dragging");
+    });
+    zone.addEventListener("dragleave", () => zone.classList.remove("dragging"));
+    zone.addEventListener("drop", (event) => {
+      event.preventDefault();
+      zone.classList.remove("dragging");
+      if (event.dataTransfer.files.length) uploadFile(event.dataTransfer.files[0]);
+    });
+  }
+
+  // Ask
+
+  function addMessage(className, text) {
+    const messages = document.getElementById("messages");
+    const bubble = el("div", `bubble ${className}`, text);
+    messages.append(bubble);
+    messages.scrollTop = messages.scrollHeight;
+    return bubble;
+  }
+
+  function answerBubble(result) {
+    const bubble = el("div", "bubble assistant");
+    if (!result.found) bubble.append(el("span", "badge-not-found", "Not found in documents"), el("br"));
+    bubble.append(document.createTextNode(result.answer));
+
+    if (result.sources.length) {
+      const sources = el("div", "sources");
+      for (const source of result.sources) {
+        const chip = el("span", "source-chip", `${source.file_name} · p.${source.page}`);
+        chip.title = `Similarity ${Math.round(source.similarity * 100)}%`;
+        sources.append(chip);
+      }
+      bubble.append(sources);
+    }
+
+    if (result.ticket) bubble.append(ticketCard(result.ticket));
+    return bubble;
+  }
+
+  function ticketCard(ticket) {
+    const card = el("div", "ticket-card");
+    card.append(el("span", "ticket-id", ticket.ticket_id), el("span", "", ticket.title), priorityBadge(ticket.priority));
+    return card;
+  }
+
+  async function sendQuestion() {
+    const input = document.getElementById("question-input");
+    const button = document.getElementById("send-button");
+    const question = input.value.trim();
+    if (!question) return;
+
+    addMessage("user", question);
+    input.value = "";
+    button.disabled = true;
+    const thinking = addMessage("thinking", "thinking...");
+
+    try {
+      const result = await apiFetch("/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question }),
+      });
+      thinking.replaceWith(answerBubble(result));
+      if (result.ticket) loadTickets();
+    } catch (error) {
+      thinking.replaceWith(el("div", "bubble error", `Error: ${error.message}`));
+    } finally {
+      button.disabled = false;
+      input.focus();
+      const messages = document.getElementById("messages");
+      messages.scrollTop = messages.scrollHeight;
+    }
+  }
+
+  function setupAskForm() {
+    document.getElementById("ask-form").addEventListener("submit", (event) => {
+      event.preventDefault();
+      sendQuestion();
+    });
+
+    const examples = document.getElementById("examples");
+    for (const question of EXAMPLE_QUESTIONS) {
+      const chip = el("button", "example-chip", question);
+      chip.type = "button";
+      chip.addEventListener("click", () => {
+        document.getElementById("question-input").value = question;
+        sendQuestion();
+      });
+      examples.append(chip);
+    }
+  }
+
+  // Tickets
+
+  function ticketRow(ticket, isNew) {
+    const row = el("tr", isNew ? "new-row" : "");
+    const created = new Date(ticket.created_at).toLocaleString([], { dateStyle: "short", timeStyle: "short" });
+
+    const priorityCell = el("td");
+    priorityCell.append(priorityBadge(ticket.priority));
+
+    row.append(
+      el("td", "", ticket.ticket_id),
+      el("td", "", ticket.title),
+      priorityCell,
+      el("td", "", ticket.source),
+      el("td", "time", created),
+    );
+    return row;
+  }
+
+  async function loadTickets() {
+    try {
+      const tickets = await apiFetch("/tickets");
+      // Highlight only tickets that appeared after the first load.
+      const isFirstLoad = knownTicketIds === null;
+      const previousIds = knownTicketIds || new Set();
+      const rows = tickets.map((ticket) => ticketRow(ticket, !isFirstLoad && !previousIds.has(ticket.ticket_id)));
+
+      document.getElementById("ticket-rows").replaceChildren(...rows);
+      document.getElementById("tickets-empty").hidden = tickets.length > 0;
+      knownTicketIds = new Set(tickets.map((ticket) => ticket.ticket_id));
+    } catch {
+      // Keep the last table on screen; the status dot shows if the API is down.
+    }
+  }
+
+  // Start
+
+  setupDropZone();
+  setupAskForm();
+  checkHealth();
+  loadDocuments();
+  loadTickets();
+  setInterval(checkHealth, HEALTH_POLL_MS);
+  setInterval(loadTickets, TICKET_POLL_MS);
+</script>
+</body>
+</html>

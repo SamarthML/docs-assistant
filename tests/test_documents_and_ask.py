@@ -38,6 +38,24 @@ def test_ask_returns_answer_with_sources(client: TestClient, fake_llm) -> None:
     )
 
 
+def test_list_documents_shows_chunk_count(client: TestClient) -> None:
+    upload(client, "northwind_handbook.pdf")
+
+    documents = client.get("/documents").json()
+
+    assert len(documents) == 1
+    assert documents[0]["file_name"] == "northwind_handbook.pdf"
+    assert documents[0]["chunks"] == 4
+
+
+def test_index_serves_html(client: TestClient) -> None:
+    response = client.get("/")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/html")
+    assert "AI Docs Assistant" in response.text
+
+
 def test_upload_rejects_unsupported_file_type(client: TestClient) -> None:
     response = client.post("/documents", files={"file": ("data.csv", b"a,b\n1,2\n")})
 

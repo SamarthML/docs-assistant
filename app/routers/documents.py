@@ -1,7 +1,10 @@
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from pydantic import BaseModel
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -13,6 +16,27 @@ from app.models import Chunk, Document
 MAX_FILE_SIZE = 10 * 1024 * 1024
 
 router = APIRouter(tags=["documents"])
+
+
+class DocumentOut(BaseModel):
+    id: int
+    file_name: str
+    uploaded_at: datetime
+    chunks: int
+
+
+@router.get("/documents")
+def list_documents(db: Session = Depends(get_db)) -> list[DocumentOut]:
+    query = (
+        select(Document, func.count(Chunk.id))
+        .outerjoin(Chunk)
+        .group_by(Document.id)
+        .order_by(Document.uploaded_at.desc(), Document.id.desc())
+    )
+    return [
+        DocumentOut(id=doc.id, file_name=doc.file_name, uploaded_at=doc.uploaded_at, chunks=count)
+        for doc, count in db.execute(query).all()
+    ]
 
 
 @router.post("/documents")
