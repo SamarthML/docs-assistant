@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     webhook_secret: str
     embedding_model: str = "BAAI/bge-small-en-v1.5"
     embedding_dim: int = 384
+    chunk_size: int = 800
+    chunk_overlap: int = 100
 
 
 settings = Settings()

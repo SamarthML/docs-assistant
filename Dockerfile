@@ -8,6 +8,12 @@ WORKDIR /code
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Download the embedding model at build time so the first request isn't slow.
+# Keep EMBEDDING_MODEL in sync with the value in .env.
+ARG EMBEDDING_MODEL=BAAI/bge-small-en-v1.5
+ENV FASTEMBED_CACHE_PATH=/models
+RUN python -c "from fastembed import TextEmbedding; TextEmbedding('${EMBEDDING_MODEL}')"
+
 COPY app ./app
 
 EXPOSE 8000
