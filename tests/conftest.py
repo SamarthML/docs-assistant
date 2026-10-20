@@ -29,6 +29,7 @@ import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
 from app.db import Base, enable_pgvector, engine  # noqa: E402
+from app.llm import ToolCall  # noqa: E402
 from app.main import app  # noqa: E402
 
 
@@ -48,19 +49,25 @@ def clean_tables() -> None:
 class FakeLLM:
     def __init__(self) -> None:
         self.answer = "NOT_FOUND"
+        self.tool_call: ToolCall | None = None
         self.calls = 0
 
     def generate_answer(self, question: str, chunks: list) -> str:
         self.calls += 1
         return self.answer
 
+    def generate_answer_with_tools(self, question: str, chunks: list) -> str | ToolCall:
+        self.calls += 1
+        return self.tool_call or self.answer
+
 
 @pytest.fixture(autouse=True)
 def fake_llm(monkeypatch: pytest.MonkeyPatch) -> FakeLLM:
-    """Replace the Groq call in every test so tests never hit the real API."""
+    """Replace the Groq calls in every test so tests never hit the real API."""
     fake = FakeLLM()
-    # Patched where it is used, because ask.py imports the function directly.
+    # Patched where they are used, because ask.py imports the functions directly.
     monkeypatch.setattr("app.routers.ask.generate_answer", fake.generate_answer)
+    monkeypatch.setattr("app.routers.ask.generate_answer_with_tools", fake.generate_answer_with_tools)
     return fake
 
 

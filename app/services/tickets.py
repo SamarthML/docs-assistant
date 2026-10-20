@@ -1,6 +1,9 @@
 import logging
+import secrets
 from datetime import datetime, timezone
+from typing import Literal
 
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -8,6 +11,41 @@ from app.db import SessionLocal
 from app.models import Ticket, WebhookEvent
 
 logger = logging.getLogger(__name__)
+
+
+class TicketArguments(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+
+    title: str = Field(min_length=5, max_length=120)
+    priority: Literal["low", "medium", "high", "urgent"] = "medium"
+    description: str | None = Field(default=None, max_length=1000)
+
+
+def create_agent_ticket(db: Session, raw_arguments: str) -> Ticket:
+    """Validate the LLM's tool arguments and save the ticket. Raises ValueError if invalid."""
+    try:
+        arguments = TicketArguments.model_validate_json(raw_arguments)
+    except ValidationError as e:
+        raise ValueError(short_reason(e)) from e
+
+    ticket = Ticket(
+        ticket_id="T-" + secrets.token_hex(3).upper(),
+        title=arguments.title,
+        priority=arguments.priority,
+        status="open",
+        source="agent",
+    )
+    db.add(ticket)
+    db.commit()
+    return ticket
+
+
+def short_reason(error: ValidationError) -> str:
+    first = error.errors()[0]
+    if first["type"] == "json_invalid":
+        return "the tool arguments were not valid JSON"
+    field = ".".join(str(part) for part in first["loc"])
+    return f"{field}: {first['msg']}"
 
 
 def process_event(event_id: str) -> None:
