@@ -170,9 +170,9 @@
   }
   button:disabled { opacity: 0.6; cursor: default; }
 
-  .examples { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .examples { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
   .example-chip {
-    padding: 6px 12px;
+    padding: 4px 10px;
     border-radius: 999px;
     background: var(--accent-soft);
     color: var(--accent);
@@ -186,6 +186,8 @@
   th { text-align: left; color: var(--muted); font-weight: 600; padding: 6px 8px; border-bottom: 1px solid var(--border); }
   td { padding: 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
   td.time { color: var(--muted); white-space: nowrap; }
+  td.ticket-id { white-space: nowrap; }
+  th.title, td.title { width: 100%; }
   .empty { color: var(--muted); font-size: 15px; }
 
   tr.new-row { animation: highlight 2.5s ease-out; }
@@ -241,7 +243,7 @@
     <div class="table-wrap">
       <table>
         <thead>
-          <tr><th>Ticket</th><th>Title</th><th>Priority</th><th>Source</th><th>Created</th></tr>
+          <tr><th>Ticket</th><th class="title">Title</th><th>Priority</th><th>Source</th><th>Created</th></tr>
         </thead>
         <tbody id="ticket-rows"></tbody>
       </table>
@@ -252,10 +254,10 @@
 
 <script>
   const EXAMPLE_QUESTIONS = [
-    "How many days of annual leave do employees get?",
-    "How quickly must a lost laptop be reported?",
-    "What is the maternity leave policy?",
-    "Raise a ticket: printer on floor 3 is broken, high priority",
+    { label: "Annual leave?", question: "How many days of annual leave do employees get?" },
+    { label: "Lost laptop?", question: "How quickly must a lost laptop be reported?" },
+    { label: "Maternity leave?", question: "What is the maternity leave policy?" },
+    { label: "Raise a ticket", question: "Raise a ticket: printer on floor 3 is broken, high priority" },
   ];
   const TICKET_POLL_MS = 3000;
   const HEALTH_POLL_MS = 10000;
@@ -293,6 +295,10 @@
     return body;
   }
 
+  function plural(count, word) {
+    return `${count} ${word}${count === 1 ? "" : "s"}`;
+  }
+
   function priorityBadge(priority) {
     return el("span", `priority ${priority}`, priority);
   }
@@ -327,7 +333,7 @@
     form.append("file", file);
     try {
       const result = await apiFetch("/documents", { method: "POST", body: form });
-      setUploadStatus(`Indexed ${result.pages} pages, ${result.chunks} chunks`, "success");
+      setUploadStatus(`Indexed ${plural(result.pages, "page")}, ${plural(result.chunks, "chunk")}`, "success");
       loadDocuments();
     } catch (error) {
       setUploadStatus(error.message, error.status === 409 ? "duplicate" : "error");
@@ -346,7 +352,7 @@
 
   function documentItem(doc) {
     const item = el("li");
-    item.append(el("span", "name", doc.file_name), el("span", "count", `${doc.chunks} chunks`));
+    item.append(el("span", "name", doc.file_name), el("span", "count", plural(doc.chunks, "chunk")));
     return item;
   }
 
@@ -374,11 +380,15 @@
 
   // Ask
 
-  function addMessage(className, text) {
+  function scrollChatToBottom() {
     const messages = document.getElementById("messages");
-    const bubble = el("div", `bubble ${className}`, text);
-    messages.append(bubble);
     messages.scrollTop = messages.scrollHeight;
+  }
+
+  function addMessage(className, text) {
+    const bubble = el("div", `bubble ${className}`, text);
+    document.getElementById("messages").append(bubble);
+    scrollChatToBottom();
     return bubble;
   }
 
@@ -430,9 +440,9 @@
       thinking.replaceWith(el("div", "bubble error", `Error: ${error.message}`));
     } finally {
       button.disabled = false;
-      input.focus();
-      const messages = document.getElementById("messages");
-      messages.scrollTop = messages.scrollHeight;
+      // preventScroll stops the focus call from scrolling the page away from the new answer.
+      input.focus({ preventScroll: true });
+      scrollChatToBottom();
     }
   }
 
@@ -443,8 +453,8 @@
     });
 
     const examples = document.getElementById("examples");
-    for (const question of EXAMPLE_QUESTIONS) {
-      const chip = el("button", "example-chip", question);
+    for (const { label, question } of EXAMPLE_QUESTIONS) {
+      const chip = el("button", "example-chip", label);
       chip.type = "button";
       chip.addEventListener("click", () => {
         document.getElementById("question-input").value = question;
@@ -464,8 +474,8 @@
     priorityCell.append(priorityBadge(ticket.priority));
 
     row.append(
-      el("td", "", ticket.ticket_id),
-      el("td", "", ticket.title),
+      el("td", "ticket-id", ticket.ticket_id),
+      el("td", "title", ticket.title),
       priorityCell,
       el("td", "", ticket.source),
       el("td", "time", created),
