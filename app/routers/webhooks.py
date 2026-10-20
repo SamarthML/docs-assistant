@@ -52,13 +52,16 @@ async def receive_ticket_webhook(
     except ValidationError as e:
         raise HTTPException(422, e.errors(include_url=False, include_context=False)) from e
 
-    # The event_id primary key makes this insert a no-op for duplicates.
-    statement = (
-        insert(WebhookEvent)
-        .values(event_id=event.event_id, type=event.type, payload=event.model_dump())
-        .on_conflict_do_nothing(index_elements=["event_id"])
-        .returning(WebhookEvent.event_id)
+    # The event_id primary key makes this a no-op for duplicates. Only a failed
+    # event is reset to "received" so it can be processed again.
+    statement = insert(WebhookEvent).values(
+        event_id=event.event_id, type=event.type, payload=event.model_dump()
     )
+    statement = statement.on_conflict_do_update(
+        index_elements=["event_id"],
+        set_={"status": "received", "payload": statement.excluded.payload},
+        where=WebhookEvent.status == "failed",
+    ).returning(WebhookEvent.event_id)
     inserted = db.execute(statement).scalar_one_or_none()
     db.commit()
 
