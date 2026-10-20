@@ -8,6 +8,7 @@ class Settings(BaseSettings):
     groq_api_key: str
     webhook_secret: str
     embedding_model: str = "BAAI/bge-small-en-v1.5"
+    embedding_dim: int = 384
 
 
 settings = Settings()
