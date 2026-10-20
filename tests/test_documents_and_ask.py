@@ -48,6 +48,17 @@ def test_list_documents_shows_chunk_count(client: TestClient) -> None:
     assert documents[0]["chunks"] == 4
 
 
+def test_duplicate_upload_is_rejected(client: TestClient) -> None:
+    upload(client, "faq.txt")
+
+    with (SAMPLE_DOCS / "faq.txt").open("rb") as f:
+        response = client.post("/documents", files={"file": ("faq-copy.txt", f)})
+
+    assert response.status_code == 409
+    assert "already uploaded as faq.txt" in response.json()["detail"]
+    assert len(client.get("/documents").json()) == 1
+
+
 def test_index_serves_html(client: TestClient) -> None:
     response = client.get("/")
 

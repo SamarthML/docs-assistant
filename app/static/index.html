@@ -80,6 +80,12 @@
   .upload-status { min-height: 24px; margin: 10px 0; font-size: 15px; display: flex; align-items: center; gap: 8px; }
   .upload-status.error { color: var(--red); }
   .upload-status.success { color: var(--green); }
+  .upload-status.duplicate {
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: var(--amber-bg);
+    color: var(--amber-text);
+  }
 
   .doc-list { list-style: none; margin: 0; padding: 0; }
   .doc-list li {
@@ -279,7 +285,11 @@
     } catch {
       // Not JSON; the status code is enough for the error message.
     }
-    if (!response.ok) throw new Error(errorMessage(body, response.status));
+    if (!response.ok) {
+      const error = new Error(errorMessage(body, response.status));
+      error.status = response.status;
+      throw error;
+    }
     return body;
   }
 
@@ -320,7 +330,7 @@
       setUploadStatus(`Indexed ${result.pages} pages, ${result.chunks} chunks`, "success");
       loadDocuments();
     } catch (error) {
-      setUploadStatus(error.message, "error");
+      setUploadStatus(error.message, error.status === 409 ? "duplicate" : "error");
     }
   }
 

@@ -128,7 +128,7 @@ To show webhooks during a demo, run `scripts/send_webhook.py` in a terminal and 
 |---|---|---|---|
 | GET | `/health` | Liveness check | 200 |
 | GET | `/` | Demo UI | 200 |
-| POST | `/documents` | Upload a .pdf, .txt or .md file, chunk and embed it | 200, 400 (wrong type, empty, no text), 413 (over 10 MB) |
+| POST | `/documents` | Upload a .pdf, .txt or .md file, chunk and embed it | 200, 400 (wrong type, empty, no text), 409 (already uploaded), 413 (over 10 MB) |
 | GET | `/documents` | List documents with their chunk counts, newest first | 200 |
 | POST | `/ask` | Answer a question from the documents, or raise a ticket | 200, 422 (invalid question), 502 (Groq failed) |
 | POST | `/webhooks/tickets` | Receive a signed ticket event | 202 (accepted), 200 (duplicate), 401 (bad signature), 422 (invalid body) |
@@ -157,11 +157,11 @@ The threshold alone is not enough. "What is the maternity leave policy?" scored 
 
 ## Testing and evaluation
 
-The 12 tests cover:
+The 13 tests cover:
 
 - Webhooks: invalid signature (401, nothing saved), missing signature (401), a valid event creating a ticket, and a duplicate event being processed only once.
 - Ask: a question with no matching content returns `found=false` without calling the LLM, and an answerable question returns the answer with the correct file and page as a source.
-- Documents: an unsupported file type is rejected with 400, and `GET /documents` lists an uploaded file with its chunk count.
+- Documents: an unsupported file type is rejected with 400, the same file uploaded twice is rejected with 409, and `GET /documents` lists an uploaded file with its chunk count.
 - UI: `GET /` returns the HTML page.
 - Chunking: `chunk_text` respects the size limit and overlap.
 - Agent: a valid `create_ticket` call saves a ticket with source `agent`, and invalid tool input (priority `super-high`) saves nothing.
@@ -205,7 +205,7 @@ On AWS the equivalent is ECS Fargate or App Runner, RDS PostgreSQL with pgvector
 - Hybrid search (vector plus Postgres full-text search) and a re-ranker, to fix the rank-2 cases.
 - A durable queue (Pub/Sub, SQS or Celery) so webhook events survive restarts, plus a job that retries events stuck in `received`.
 - Alembic migrations instead of `create_all`.
-- OCR for scanned PDFs, duplicate upload detection using a file hash, and async ingestion for large files.
+- OCR for scanned PDFs, and async ingestion for large files.
 - Intent classification instead of a keyword check to decide when to offer the ticket tool.
 - A multi-stage Dockerfile so the tests and test packages are not in the production image.
 - Authentication and rate limiting on the API, plus structured logging and metrics.

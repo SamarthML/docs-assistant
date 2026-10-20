@@ -1,3 +1,4 @@
+import hashlib
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -5,6 +6,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from pydantic import BaseModel
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -53,6 +55,11 @@ def upload_document(file: UploadFile, db: Session = Depends(get_db)) -> dict[str
     if not data:
         raise HTTPException(400, "File is empty")
 
+    content_hash = hashlib.sha256(data).hexdigest()
+    existing = find_by_hash(db, content_hash)
+    if existing:
+        raise HTTPException(409, duplicate_message(existing.file_name))
+
     try:
         pages = extract_pages(file_name, data)
     except ValueError as e:
@@ -68,7 +75,7 @@ def upload_document(file: UploadFile, db: Session = Depends(get_db)) -> dict[str
 
     embeddings = embed_documents([chunk for _, chunk in page_chunks])
 
-    document = Document(file_name=file_name)
+    document = Document(file_name=file_name, content_hash=content_hash)
     for index, ((page_number, content), embedding) in enumerate(zip(page_chunks, embeddings)):
         document.chunks.append(
             Chunk(
@@ -81,7 +88,13 @@ def upload_document(file: UploadFile, db: Session = Depends(get_db)) -> dict[str
         )
 
     db.add(document)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as e:
+        # Another request saved the same file between our check and this commit.
+        db.rollback()
+        existing = find_by_hash(db, content_hash)
+        raise HTTPException(409, duplicate_message(existing.file_name if existing else file_name)) from e
 
     return {
         "document_id": document.id,
@@ -89,3 +102,11 @@ def upload_document(file: UploadFile, db: Session = Depends(get_db)) -> dict[str
         "pages": len(pages),
         "chunks": len(page_chunks),
     }
+
+
+def find_by_hash(db: Session, content_hash: str) -> Document | None:
+    return db.scalars(select(Document).where(Document.content_hash == content_hash)).first()
+
+
+def duplicate_message(file_name: str) -> str:
+    return f"This file was already uploaded as {file_name}"
