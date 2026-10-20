@@ -47,9 +47,14 @@ def ask(request: AskRequest, db: Session = Depends(get_db)) -> AskResponse:
     if NOT_FOUND in answer:
         return AskResponse(answer=NOT_FOUND_ANSWER, found=False, sources=[])
 
+    cited = extract_citations(answer, len(chunks))
+    # If the model cited nothing, fall back to every chunk it was given.
+    if not cited:
+        cited = list(range(1, len(chunks) + 1))
+
     sources = []
     seen = set()
-    for number in extract_citations(answer, len(chunks)):
+    for number in cited:
         chunk, score = relevant[number - 1]
         key = (chunk.file_name, chunk.page_number)
         if key in seen:

@@ -12,6 +12,7 @@ SYSTEM_PROMPT = f"""You answer questions about company documents.
 Rules:
 - Answer ONLY using the provided context. Do not use outside knowledge.
 - Cite the context chunks you used by their number, like [1] or [2][3].
+- Write plain text only. No markdown: no bold, italics, headings, bullet lists or tables.
 - If the context does not contain the answer, reply with exactly: {NOT_FOUND}"""
 
 
