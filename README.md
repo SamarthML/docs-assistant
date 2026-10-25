@@ -1,5 +1,7 @@
 # docs-assistant
 
+[![Tests](https://github.com/SamarthML/docs-assistant/actions/workflows/tests.yml/badge.svg)](https://github.com/SamarthML/docs-assistant/actions/workflows/tests.yml)
+
 docs-assistant is a small FastAPI service that answers questions about uploaded documents. You upload PDF, TXT or Markdown files; the service splits them into chunks, embeds them locally and stores them in Postgres with pgvector. When you ask a question, it retrieves the most similar chunks and asks an LLM (via Groq) to answer only from those chunks, with citations to the file and page. If the documents don't contain the answer, it says so instead of guessing. It also receives signed ticket webhooks idempotently, and can raise a support ticket itself when a user asks for one through `/ask`.
 
 ## Architecture
@@ -111,6 +113,21 @@ docker compose exec api python -m scripts.evaluate
 ```
 
 This uploads the sample documents if they are missing, then runs the questions in `eval/questions.json` through the search step only (no LLM call).
+
+## Project structure
+
+```
+app/                  FastAPI app: config, database, models, embeddings, ingestion, retrieval and the Groq client
+app/routers/          API endpoints for documents, ask, webhooks and tickets
+app/services/         Ticket logic: webhook event processing and agent-created tickets
+app/static/           The demo UI (a single index.html)
+tests/                Pytest suite for webhooks, ask, documents, chunking and the agent tool
+scripts/              send_webhook.py (signed webhook sender) and evaluate.py (retrieval evaluation)
+eval/                 questions.json, the questions and expected pages used by the evaluation
+sample_docs/          Sample documents to upload (a PDF handbook and a text FAQ)
+Dockerfile            API image with dependencies and the embedding model downloaded at build time
+docker-compose.yml    Runs the API and Postgres with pgvector
+```
 
 ## Demo UI
 
